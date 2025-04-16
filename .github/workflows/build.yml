@@ -13,25 +13,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2019
             arch: x64
 
     steps:
     - uses: actions/checkout@v3
-    
-    - name: Install Chocolatey
-      run: |
-        Set-ExecutionPolicy Bypass -Scope Process -Force; `
-        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; `
-        iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
-    - name: Build with Nuitka (Windows)
-      run: python -m nuitka --onefile --standalone --output-dir=dist --output-filename=${{ matrix.output_name }} --assume-yes-for-downloads wss.py
 
-    - name: Checksum
+    - name: Build
+      shell: pwsh
       run: |
-        echo "Checksum for ${{ matrix.output_name }}:"
-        certutil -hashfile dist/${{ matrix.output_name }} SHA256
+        dir
+        pwsh -File ./build-opencv.ps1
 
     - name: Create Github Release
       id: create_release
@@ -62,7 +55,9 @@ jobs:
     - uses: actions/checkout@v3
     
     - name: Build
-      run: ./build-opencv.sh
+      run: |
+        chmod +x ./build-opencv.sh
+        ./build-opencv.sh
 
     - name: Create Github Release
       id: create_release

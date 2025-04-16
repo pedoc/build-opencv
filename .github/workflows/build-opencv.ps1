@@ -11,15 +11,16 @@ $InstallDir = "C:\opencv_install"
 $BuildDir = "$env:USERPROFILE\opencv_build"
 $NumJobs = [Environment]::ProcessorCount
 
+$env:JAVA_HOME = $env:JAVA_HOME_8_X64
+$env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+$env:VCPKG_DISABLE_METRICS = "1"
+$env:VCPKG_DEFAULT_TRIPLET = "x64-windows-static"
+$env:VCPKG_BUILD_TYPE = "release"
+
 # Create build directory
 if (-Not (Test-Path -Path $BuildDir)) {
     New-Item -ItemType Directory -Path $BuildDir | Out-Null
 }
-
-Write-Host "Preparing dependencies..."
-
-# Install dependencies using Chocolatey (ensure Chocolatey is installed)
-choco install -y git cmake python3 wget 7zip make ninja-build
 
 # Function to install BellSoft JDK 8
 function Install-BellSoftJDK8 {
@@ -27,8 +28,8 @@ function Install-BellSoftJDK8 {
     $Archive = "$env:TEMP\bellsoft-jdk8u432+7-windows-amd64.zip"
     $InstallDir = "C:\Program Files\BellSoft\JDK8"
 
-    if (Test-Path -Path $InstallDir) {
-        Write-Host "BellSoft JDK 8 is already installed at $InstallDir"
+    if ((Get-Command java -ErrorAction SilentlyContinue) -and (& java -version 2>&1 | Select-String "1.8")) {
+        Write-Host "JDK 8 is already installed."
         return
     }
 
@@ -50,8 +51,8 @@ function Install-Ant {
     $AntUrl = "https://downloads.apache.org/ant/binaries/apache-ant-$AntVersion-bin.zip"
     $InstallDir = "C:\Program Files\Ant"
 
-    if (Test-Path -Path $InstallDir) {
-        Write-Host "Apache Ant is already installed at $InstallDir"
+    if ((Get-Command ant -ErrorAction SilentlyContinue) -and (& ant -version)) {
+        Write-Host "Apache Ant is already installed."
         return
     }
 
@@ -93,8 +94,8 @@ function Install-Vcpkg {
     $VcpkgDir = "$BuildDir\vcpkg"
     $VcpkgRepo = "https://github.com/microsoft/vcpkg.git"
 
-    if (Test-Path -Path $VcpkgDir) {
-        Write-Host "vcpkg is already installed at $VcpkgDir"
+    if ((Get-Command vcpkg -ErrorAction SilentlyContinue) -and (& vcpkg version)) {
+        Write-Host "vcpkg is already installed."
         return
     }
 
@@ -117,11 +118,37 @@ function Install-Vcpkg {
     .\vcpkg.exe version
 }
 
+# Function to install Chocolatey
+function Install-Choco {
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        Write-Host "Chocolatey is already installed."
+        return
+    }
+
+    Write-Host "Installing Chocolatey..."
+    Set-ExecutionPolicy Bypass -Scope Process -Force
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        Write-Host "Chocolatey installed successfully."
+    } else {
+        Write-Host "Failed to install Chocolatey."
+        exit 1
+    }
+}
+
 # Install dependencies
 Install-BellSoftJDK8
 Install-Ant
 Install-Python38
 Install-Vcpkg
+Install-Choco
+
+Write-Host "Preparing dependencies..."
+
+# Install dependencies using Chocolatey (ensure Chocolatey is installed)
+choco install -y git cmake python3 wget 7zip make ninja-build
 
 # Install Python packages
 & pip3 install numpy jinja2 --user
@@ -148,19 +175,9 @@ if (Test-Path -Path $BuildOutputDir) {
 }
 New-Item -ItemType Directory -Path $BuildOutputDir | Out-Null
 
-cmake -G "Ninja" `
-    -D CMAKE_BUILD_TYPE=Release `
-    -D CMAKE_INSTALL_PREFIX=$InstallDir `
-    -D OPENCV_EXTRA_MODULES_PATH="$BuildDir\opencv_contrib\modules" `
-    -D BUILD_EXAMPLES=OFF `
-    -D BUILD_TESTS=OFF `
-    -D BUILD_PERF_TESTS=OFF `
-    -D BUILD_SHARED_LIBS=OFF `
-    -D OPENCV_ENABLE_NONFREE=ON `
-    -D BUILD_LIST=core,imgproc,highgui,imgcodecs `
-    -S "$BuildDir\opencv" `
-    -B $BuildOutputDir
-cmake -D CMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+cmake -G "Visual Studio 16 2019" `
+    -A x64 `
+    -D CMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
     -D VCPKG_TARGET_TRIPLET=$VCPKG_DEFAULT_TRIPLET `
     -D CMAKE_BUILD_TYPE=Release `
     -D CMAKE_INSTALL_PREFIX="$InstallDir" `

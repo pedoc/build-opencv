@@ -9,6 +9,31 @@ set -e
 # shellcheck disable=SC1091
 source /etc/profile
 
+ARCH=$(uname -m)
+VCPKG_ARCH=""
+case "$ARCH" in
+"x86_64")
+    ARCH="amd64"
+    VCPKG_ARCH="x64"
+    ;;
+"aarch64")
+    ARCH="aarch64"
+    VCPKG_ARCH="arm64"
+    ;;
+*)
+    err "Unsupport arch: $ARCH"
+    exit 1
+    ;;
+esac
+
+echo "os info:"
+cat /etc/os-release
+uname -a
+echo "cpu info:"
+lscpu
+echo "sources list:"
+cat /etc/apt/sources.list
+
 OPENCV_VERSION="4.5.5"
 OPENCV_VERSION_NO_DOT="${OPENCV_VERSION//./}"
 OPENCV_CONTRIB_VERSION="4.x"
@@ -25,8 +50,8 @@ apt update
 apt install -y sudo libssl-dev wget curl zip build-essential git pkg-config python3 python3-pip python3-dev ccache zlib1g-dev libsqlite3-dev bison nasm libx11-dev libxft-dev libxext-dev linux-libc-dev libxmu-dev libxi-dev libgl-dev autoconf libtool gfortran libxt-dev libxtst-dev
 
 install_bellsoft_jdk8() {
-    local url="https://download.bell-sw.com/java/8u432+7/bellsoft-jdk8u432+7-linux-amd64.tar.gz"
-    local archive="bellsoft-jdk8u432+7-linux-amd64.tar.gz"
+    local url="https://download.bell-sw.com/java/8u432+7/bellsoft-jdk8u432+7-linux-${ARCH}.tar.gz"
+    local archive="bellsoft-jdk8u432+7-linux-${ARCH}.tar.gz"
     local install_dir="/opt/bellsoft-jdk8u432+7"
     local profile_file="/etc/profile.d/bellsoft-jdk8.sh"
 
@@ -120,7 +145,7 @@ install_gcc9() {
     g++ --version
 }
 
-install_python38(){
+install_python38() {
     echo "install python 3.8.2 ..."
     if ! command -v python3 &>/dev/null || [[ "$(python3 --version)" != "Python 3.8.2" ]]; then
         cd "$BUILD_DIR"
@@ -196,11 +221,17 @@ if [ ! -d "opencv_contrib" ]; then
     git clone -b "$OPENCV_CONTRIB_VERSION" --depth 1 https://github.com/opencv/opencv_contrib.git
 fi
 
-export VCPKG_DEFAULT_TRIPLET="x64-linux"
+export VCPKG_DEFAULT_TRIPLET="${VCPKG_ARCH}-linux"
 export VCPKG_BUILD_TYPE=release
+echo "[$(pwd)] set vcpkg triplet to $VCPKG_DEFAULT_TRIPLET, build type to $VCPKG_BUILD_TYPE"
+
 echo "[$(pwd)] install opencv dependencies over vcpkg ..."
 # vcpkg install libpng libjpeg-turbo libwebp tiff openexr openblas lapack vtk ffmpeg hdf5 eigen3 tesseract freetype openssl qt5-base
 # vcpkg install libpng libjpeg-turbo libwebp tiff openexr openblas lapack ffmpeg hdf5 freetype openssl qt5-base
+
+echo "libwebp portfile:"
+cat "$VCPKG_ROOT/ports/libwebp/portfile.cmake"
+
 vcpkg install zlib libpng libjpeg-turbo libwebp tiff openjpeg
 
 rm -rf "$BUILD_DIR/build" || true
