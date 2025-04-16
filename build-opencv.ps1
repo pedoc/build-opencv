@@ -75,7 +75,7 @@ function Install-Python38 {
     $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-amd64.exe"
     $Installer = "$env:TEMP\python-$PythonVersion-amd64.exe"
 
-    if ((Get-Command python3 -ErrorAction SilentlyContinue) -and (& python3 --version).Contains($PythonVersion)) {
+    if ((Get-Command python3 -ErrorAction SilentlyContinue)) {
         Write-Host "Python $PythonVersion is already installed"
         return
     }
@@ -148,7 +148,7 @@ Install-Choco
 Write-Host "Preparing dependencies..."
 
 # Install dependencies using Chocolatey (ensure Chocolatey is installed)
-choco install -y git cmake python3 wget 7zip make ninja-build
+choco install -y wget curl
 
 # Install Python packages
 & pip3 install numpy jinja2 --user
