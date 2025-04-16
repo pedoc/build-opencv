@@ -233,8 +233,8 @@ echo "libwebp portfile:"
 cat "$VCPKG_ROOT/ports/libwebp/portfile.cmake"
 
 if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    echo "[$(pwd)] apply patch to libwebp on $ARCH ..."
-    cp ./9999-enc_neon-fix-build-w-aarch64-gcc-9.4.0.patch "$VCPKG_ROOT/ports/libwebp/"
+    echo "[$(pwd)] apply patch to libwebp on $ARCH(from $REPO_PATH) ..."
+    cp "$REPO_PATH/9999-enc_neon-fix-build-w-aarch64-gcc-9.4.0.patch" "$VCPKG_ROOT/ports/libwebp/"
     sed -i '/PATCHES/ a\        9999-enc_neon-fix-build-w-aarch64-gcc-9.4.0.patch' "$VCPKG_ROOT/ports/libwebp//portfile.cmake"
     echo "[$(pwd)] libwebp patch done:"
     cat "$VCPKG_ROOT/ports/libwebp/portfile.cmake"

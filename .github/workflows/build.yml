@@ -35,6 +35,8 @@ jobs:
         files: ./dist/${{ matrix.output_name }}
   build-linux:
     runs-on: ${{ matrix.os }}
+    env:
+      REPO_PATH: ${{ github.workspace }}
     container:
       image: debian:10
     timeout-minutes: 30
