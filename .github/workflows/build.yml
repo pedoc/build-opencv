@@ -1,0 +1,73 @@
+name: Build and Release
+ 
+on:
+  push:
+    tags:
+      - 'v*' # 当推送 v 开头的标签时触发
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build-win:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Chocolatey
+      run: |
+        Set-ExecutionPolicy Bypass -Scope Process -Force; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; `
+        iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+    - name: Build with Nuitka (Windows)
+      run: python -m nuitka --onefile --standalone --output-dir=dist --output-filename=${{ matrix.output_name }} --assume-yes-for-downloads wss.py
+
+    - name: Checksum
+      run: |
+        echo "Checksum for ${{ matrix.output_name }}:"
+        certutil -hashfile dist/${{ matrix.output_name }} SHA256
+
+    - name: Create Github Release
+      id: create_release
+      uses: softprops/action-gh-release@v2.2.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        files: ./dist/${{ matrix.output_name }}
+  build-linux:
+    runs-on: ${{ matrix.os }}
+    container:
+      image: debian:10
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-24.04-arm #ubuntu-latest-arm
+            arch: arm64
+
+    steps:
+    - name: Check Environment
+      run: |
+        uname -a
+        ldd --version
+
+    - uses: actions/checkout@v3
+    
+    - name: Build
+      run: ./build-opencv.sh
+
+    - name: Create Github Release
+      id: create_release
+      uses: softprops/action-gh-release@v2.2.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        files: $HOME/opencv_build/opencv-*.tar.gz
