@@ -88,13 +88,45 @@ function Install-Python38 {
     & pip3 --version
 }
 
+# Function to install vcpkg
+function Install-Vcpkg {
+    $VcpkgDir = "$BuildDir\vcpkg"
+    $VcpkgRepo = "https://github.com/microsoft/vcpkg.git"
+
+    if (Test-Path -Path $VcpkgDir) {
+        Write-Host "vcpkg is already installed at $VcpkgDir"
+        return
+    }
+
+    Write-Host "Installing vcpkg..."
+    git clone $VcpkgRepo $VcpkgDir
+
+    # Bootstrap vcpkg
+    Set-Location -Path $VcpkgDir
+    .\bootstrap-vcpkg.bat
+
+    # Add vcpkg to PATH for the current session
+    $env:Path += ";$VcpkgDir"
+
+    [Environment]::SetEnvironmentVariable("VCPKG_ROOT", $VcpkgDir, [EnvironmentVariableTarget]::Machine)
+    [Environment]::SetEnvironmentVariable("VCPKG_DISABLE_METRICS", "1", [EnvironmentVariableTarget]::Machine)
+    [Environment]::SetEnvironmentVariable("VCPKG_DEFAULT_TRIPLET", "x64-windows-static", [EnvironmentVariableTarget]::Machine)
+    [Environment]::SetEnvironmentVariable("VCPKG_BUILD_TYPE", "release", [EnvironmentVariableTarget]::Machine)
+
+    Write-Host "vcpkg installed at $VcpkgDir"
+    .\vcpkg.exe version
+}
+
 # Install dependencies
 Install-BellSoftJDK8
 Install-Ant
 Install-Python38
+Install-Vcpkg
 
 # Install Python packages
 & pip3 install numpy jinja2 --user
+# Install vcpkg deps
+& vcpkg install zlib libpng libjpeg-turbo libwebp tiff openjpeg
 
 # Clone OpenCV repositories
 Write-Host "Cloning OpenCV repositories..."
@@ -128,8 +160,39 @@ cmake -G "Ninja" `
     -D BUILD_LIST=core,imgproc,highgui,imgcodecs `
     -S "$BuildDir\opencv" `
     -B $BuildOutputDir
+cmake -D CMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+    -D VCPKG_TARGET_TRIPLET=$VCPKG_DEFAULT_TRIPLET `
+    -D CMAKE_BUILD_TYPE=Release `
+    -D CMAKE_INSTALL_PREFIX="$InstallDir" `
+    -D OPENCV_EXTRA_MODULES_PATH="$BuildDir/opencv_contrib/modules" `
+    -D ENABLE_PRECOMPILED_HEADERS=ON `
+    -D BUILD_EXAMPLES=OFF `
+    -D BUILD_DOCS=OFF `
+    -S "$BuildDir\opencv" `
+    -B $BuildOutputDir `
+    -D BUILD_opencv_apps=OFF `
+    -D BUILD_TESTS=OFF `
+    -D BUILD_PERF_TESTS=OFF `
+    -D OPENCV_ENABLE_JAVA=ON `
+    -D BUILD_JAVA=ON `
+    -D BUILD_opencv_java=ON `
+    -D BUILD_opencv_java_bindings_generator=ON `
+    -D BUILD_SHARED_LIBS=OFF `
+    -D OPENCV_ENABLE_NONFREE=ON `
+    -D BUILD_LIST=core,imgproc,highgui,imgcodecs,java,java_bindings_generator `
+    -D WITH_QT=ON `
+    -D ccitt=OFF `
+    -D BUILD_ITT=OFF `
+    -D WITH_ITT=OFF `
+    -D WITH_VTK=OFF `
+    -D WITH_OPENEXR=OFF `
+    -D CV_TRACE=OFF `
+    -D WITH_EIGEN=OFF `
+    -D WITH_OPENCL=ON
 
 cmake --build $BuildOutputDir --parallel $NumJobs
 cmake --install $BuildOutputDir --prefix $InstallDir
 
 Write-Host "OpenCV build and installation complete!"
+
+tree $BuildDir
