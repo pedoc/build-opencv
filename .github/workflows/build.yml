@@ -45,8 +45,12 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x64
+            opencv_version: 4.5.5
+            arch_name: x86_64
           - os: ubuntu-24.04-arm #ubuntu-latest-arm
             arch: arm64
+            arch_name: aarch64
+            opencv_version: 4.5.5
 
     steps:
     - name: Check Environment
@@ -67,4 +71,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        files: $HOME/opencv_build/opencv-*.tar.gz
+        files: /github/home/opencv_build/opencv-${{ matrix.opencv_version }}-${{ matrix.arch_name }}.tar.gz
