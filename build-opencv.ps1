@@ -2,13 +2,14 @@
 
 # Exit on error
 $ErrorActionPreference = "Stop"
+chcp 65001
 
 # Variables
 $OpenCVVersion = "4.5.5"
 $OpenCVVersionNoDot = $OpenCVVersion -replace '\.', ''
 $OpenCVContribVersion = "4.x"
 $InstallDir = "C:\opencv_install"
-$BuildDir = "$env:USERPROFILE\opencv_build"
+$BuildDir = "C:\opencv_build"
 $NumJobs = [Environment]::ProcessorCount
 
 $env:JAVA_HOME = $env:JAVA_HOME_8_X64
@@ -17,10 +18,36 @@ $env:VCPKG_DISABLE_METRICS = "1"
 $env:VCPKG_DEFAULT_TRIPLET = "x64-windows-static"
 $env:VCPKG_BUILD_TYPE = "release"
 
+Write-Host "JAVA_HOME_8_X64=$env:JAVA_HOME_8_X64"
+Write-Host "JAVA_HOME=$env:JAVA_HOME"
+Write-Host "VCPKG_INSTALLATION_ROOT=$env:VCPKG_INSTALLATION_ROOT"
+Write-Host "VCPKG_ROOT=$env:VCPKG_ROOT"
+Write-Host "VCPKG_DEFAULT_TRIPLET=$env:VCPKG_DEFAULT_TRIPLET"
+Write-Host "VCPKG_BUILD_TYPE=$env:VCPKG_BUILD_TYPE"
+
 # Create build directory
 if (-Not (Test-Path -Path $BuildDir)) {
     New-Item -ItemType Directory -Path $BuildDir | Out-Null
 }
+
+# Function to print all environment variables
+function Print-EnvironmentVariables {
+    Write-Host "Listing all environment variables:"
+    Write-Host "-------------------------------------PROCESS-------------------------------------"
+    foreach ($envVar in [System.Environment]::GetEnvironmentVariables("Process")) {
+        Write-Host "$($envVar.Key) = $($envVar.Value)"
+    }
+    Write-Host "-------------------------------------USER----------------------------------------"
+    foreach ($envVar in [System.Environment]::GetEnvironmentVariables("User")) {
+        Write-Host "[User] $($envVar.Key) = $($envVar.Value)"
+    }
+    Write-Host "-------------------------------------MACHINE-------------------------------------"
+    foreach ($envVar in [System.Environment]::GetEnvironmentVariables("Machine")) {
+        Write-Host "[Machine] $($envVar.Key) = $($envVar.Value)"
+    }
+}
+
+Print-EnvironmentVariables
 
 # Function to install BellSoft JDK 8
 function Install-BellSoftJDK8 {
@@ -30,6 +57,7 @@ function Install-BellSoftJDK8 {
 
     if ((Get-Command java -ErrorAction SilentlyContinue) -and (& java -version 2>&1 | Select-String "1.8")) {
         Write-Host "JDK 8 is already installed."
+        & java -version
         return
     }
 
@@ -53,6 +81,7 @@ function Install-Ant {
 
     if ((Get-Command ant -ErrorAction SilentlyContinue) -and (& ant -version)) {
         Write-Host "Apache Ant is already installed."
+        & ant -version
         return
     }
 
@@ -76,7 +105,9 @@ function Install-Python38 {
     $Installer = "$env:TEMP\python-$PythonVersion-amd64.exe"
 
     if ((Get-Command python3 -ErrorAction SilentlyContinue)) {
-        Write-Host "Python $PythonVersion is already installed"
+        Write-Host "Python is already installed"
+        & python --version
+        & pip --version
         return
     }
 
@@ -85,8 +116,8 @@ function Install-Python38 {
     Start-Process -FilePath $Installer -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" -Wait
 
     Write-Host "Python $PythonVersion installed"
-    & python3 --version
-    & pip3 --version
+    & python --version
+    & pip --version
 }
 
 # Function to install vcpkg
@@ -96,6 +127,7 @@ function Install-Vcpkg {
 
     if ((Get-Command vcpkg -ErrorAction SilentlyContinue) -and (& vcpkg version)) {
         Write-Host "vcpkg is already installed."
+        & vcpkg version
         return
     }
 
@@ -151,7 +183,7 @@ Write-Host "Preparing dependencies..."
 choco install -y wget curl
 
 # Install Python packages
-& pip3 install numpy jinja2 --user
+& pip install numpy jinja2 --user
 # Install vcpkg deps
 & vcpkg install zlib libpng libjpeg-turbo libwebp tiff openjpeg
 
@@ -175,10 +207,12 @@ if (Test-Path -Path $BuildOutputDir) {
 }
 New-Item -ItemType Directory -Path $BuildOutputDir | Out-Null
 
+Write-Host "Building OpenCV (BuildOutputDir:$BuildOutputDir,InstallDir: $InstallDir,BuildOutputDir: $BuildOutputDir)..."
+
 cmake -G "Visual Studio 16 2019" `
     -A x64 `
-    -D CMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-    -D VCPKG_TARGET_TRIPLET=$VCPKG_DEFAULT_TRIPLET `
+    -D CMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+    -D VCPKG_TARGET_TRIPLET=$env:VCPKG_DEFAULT_TRIPLET `
     -D CMAKE_BUILD_TYPE=Release `
     -D CMAKE_INSTALL_PREFIX="$InstallDir" `
     -D OPENCV_EXTRA_MODULES_PATH="$BuildDir/opencv_contrib/modules" `

@@ -19,12 +19,23 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Check Environment
+      shell: pwsh
+      run: |
+        Write-Host "Workflow: $env:GITHUB_WORKFLOW"
+        Write-Host "JAVA_HOME_8_X64: $env:JAVA_HOME_8_X64"
+        dir C:\
+        which vcpkg
+        which cmake
+        which git
+        which python
+        which pip
+        which ninja
+        which java
 
     - name: Build
       shell: pwsh
-      run: |
-        dir
-        pwsh -File ./build-opencv.ps1
+      run: ./build-opencv.ps1
 
     - name: Create Github Release
       id: create_release
