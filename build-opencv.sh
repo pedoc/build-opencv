@@ -285,7 +285,7 @@ sudo make install
 #sudo ldconfig
 
 echo "[$(pwd)] archive"
-ARCHIVE_FILE="opencv-$OPENCV_VERSION-$(uname -m).tar.gz"
+ARCHIVE_FILE="opencv-linux-$OPENCV_VERSION-$(uname -m).tar.gz"
 ARCHIVE_DIR="$BUILD_DIR/opencv-$OPENCV_VERSION-$(uname -m)"
 mkdir -p "$ARCHIVE_DIR"
 cp "$BUILD_DIR/build/bin/opencv-${OPENCV_VERSION_NO_DOT}.jar" "$ARCHIVE_DIR"
