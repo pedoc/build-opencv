@@ -47,7 +47,7 @@ NUM_JOBS=$(nproc)
 echo "prepare deps..."
 sed -i 's|^deb cdrom:|#&|' /etc/apt/sources.list
 apt update
-apt install -y sudo libssl-dev wget curl zip build-essential git pkg-config python3 python3-pip python3-dev ccache zlib1g-dev libsqlite3-dev bison nasm libx11-dev libxft-dev libxext-dev linux-libc-dev libxmu-dev libxi-dev libgl-dev autoconf libtool gfortran libxt-dev libxtst-dev
+apt install -y sudo libssl-dev wget curl zip build-essential git pkg-config python3 python3-pip python3-dev ccache zlib1g-dev libsqlite3-dev bison nasm libx11-dev libxft-dev libxext-dev linux-libc-dev libxmu-dev libxi-dev libgl-dev autoconf libtool gfortran libxt-dev libxtst-dev patchelf
 
 install_bellsoft_jdk8() {
     local url="https://download.bell-sw.com/java/8u432+7/bellsoft-jdk8u432+7-linux-${ARCH}.tar.gz"
@@ -275,7 +275,9 @@ cmake -D CMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
     -D WITH_OPENEXR=OFF \
     -D CV_TRACE=OFF \
     -D WITH_EIGEN=OFF \
-    -D WITH_OPENCL=ON
+    -D WITH_OPENCL=ON \
+    -D CMAKE_SKIP_RPATH=ON \
+    -D CMAKE_SKIP_INSTALL_RPATH=ON
 
 echo "build..."
 make -j"$NUM_JOBS"
@@ -289,6 +291,8 @@ ARCHIVE_FILE="opencv-linux-$OPENCV_VERSION-$(uname -m).tar.gz"
 ARCHIVE_DIR="$BUILD_DIR/opencv-$OPENCV_VERSION-$(uname -m)"
 mkdir -p "$ARCHIVE_DIR"
 cp "$BUILD_DIR/build/bin/opencv-${OPENCV_VERSION_NO_DOT}.jar" "$ARCHIVE_DIR"
+# fix scanelf: rpath_security_checks(): Security problem NULL DT_RUNPATH in ./libopencv_java455.so
+# patchelf --remove-rpath "$BUILD_DIR/build/lib/libopencv_java${OPENCV_VERSION_NO_DOT}.so"
 cp "$BUILD_DIR/build/lib/libopencv_java${OPENCV_VERSION_NO_DOT}.so" "$ARCHIVE_DIR"
 tar -czvf "$BUILD_DIR/${ARCHIVE_FILE}" -C "$ARCHIVE_DIR" .
 echo "[$(pwd)] archive done to $BUILD_DIR/${ARCHIVE_FILE}"
