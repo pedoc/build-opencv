@@ -24,6 +24,7 @@ Write-Host "VCPKG_INSTALLATION_ROOT=$env:VCPKG_INSTALLATION_ROOT"
 Write-Host "VCPKG_ROOT=$env:VCPKG_ROOT"
 Write-Host "VCPKG_DEFAULT_TRIPLET=$env:VCPKG_DEFAULT_TRIPLET"
 Write-Host "VCPKG_BUILD_TYPE=$env:VCPKG_BUILD_TYPE"
+Write-Host "ANT_HOME=$env:ANT_HOME"
 
 # Create build directory
 if (-Not (Test-Path -Path $BuildDir)) {
@@ -170,6 +171,43 @@ function Install-Choco {
     }
 }
 
+# Function to copy files and create a zip archive
+function Package-OpenCV {
+    param (
+        [string]$InstallDir,
+        [string]$OpenCVVersion
+    )
+
+    # Define source files
+    $JarFile = "C:\opencv_build\build\bin\opencv-$($OpenCVVersionNoDot).jar"
+    $DllFile = "C:\opencv_build\build\lib\Debug\opencv_java$($OpenCVVersionNoDot).dll"
+    $ZipFile = "C:\opencv-$OpenCVVersion-x64.zip"
+
+    # Ensure InstallDir exists
+    if (-Not (Test-Path -Path $InstallDir)) {
+        New-Item -ItemType Directory -Path $InstallDir | Out-Null
+    }
+
+    # Copy files to InstallDir
+    Write-Host "Copying $JarFile to $InstallDir..."
+    Copy-Item -Path $JarFile -Destination $InstallDir -Force
+
+    Write-Host "Copying $DllFile to $InstallDir..."
+    Copy-Item -Path $DllFile -Destination $InstallDir -Force
+
+    # Create a zip archive using 7z
+    Write-Host "Creating zip archive $ZipFile..."
+    $7zPath = (Get-Command 7z -ErrorAction SilentlyContinue).Source
+    if (-Not $7zPath) {
+        Write-Host "7z is not installed or not in PATH. Please install 7-Zip."
+        exit 1
+    }
+
+    & $7zPath a -tzip $ZipFile "$InstallDir\*" | Out-Null
+
+    Write-Host "Zip archive created at $ZipFile"
+}
+
 # Install dependencies
 Install-BellSoftJDK8
 Install-Ant
@@ -180,7 +218,7 @@ Install-Choco
 Write-Host "Preparing dependencies..."
 
 # Install dependencies using Chocolatey (ensure Chocolatey is installed)
-choco install -y wget curl
+# choco install -y wget curl
 
 # Install Python packages
 & pip install numpy jinja2 --user
@@ -239,11 +277,18 @@ cmake -G "Visual Studio 16 2019" `
     -D WITH_OPENEXR=OFF `
     -D CV_TRACE=OFF `
     -D WITH_EIGEN=OFF `
-    -D WITH_OPENCL=ON
+    -D WITH_OPENCL=ON `
+    -D ANT_EXECUTABLE="$env:ANT_HOME\bin\ant.bat"
 
+Write-Host "Building OpenCV..."
 cmake --build $BuildOutputDir --parallel $NumJobs
-cmake --install $BuildOutputDir --prefix $InstallDir
+
+# Write-Host "Installing OpenCV..."
+# cmake --install $BuildOutputDir --prefix $InstallDir
+
+Write-Host "Archive OpenCV to $InstallDir..."
+Package-OpenCV -InstallDir $InstallDir -OpenCVVersion $OpenCVVersion
+
+tree $InstallDir
 
 Write-Host "OpenCV build and installation complete!"
-
-tree $BuildDir
